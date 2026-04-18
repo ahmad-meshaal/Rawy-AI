@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, Feather, Home, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "@/components/UserMenu";
 
 interface LayoutProps {
   children: ReactNode;
@@ -23,7 +22,6 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
           <Feather className="h-5 w-5" />
           <span>راوي</span>
         </Link>
-        <UserMenu />
       </div>
 
       {/* Sidebar - Desktop */}
@@ -50,18 +48,6 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
               <Home className="h-5 w-5" />
               <span>الرئيسية</span>
             </Link>
-            <Link 
-              href="/novels" 
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ui-font font-medium",
-                location === "/novels" 
-                  ? "bg-primary/10 text-primary" 
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <BookOpen className="h-5 w-5" />
-              <span>المكتبة</span>
-            </Link>
             <div className="px-4 py-2 mt-4 text-xs font-bold text-muted-foreground uppercase tracking-wider ui-font">
               أدوات الكاتب
             </div>
@@ -70,7 +56,7 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
             </div>
           </nav>
 
-          <div className="p-4 border-t space-y-2">
+          <div className="p-4 border-t">
             <Link 
               href="/settings" 
               className={cn(
@@ -83,9 +69,6 @@ export function Layout({ children, showSidebar = true }: LayoutProps) {
               <Settings className="h-4 w-4" />
               <span>الإعدادات</span>
             </Link>
-            <div className="px-2 py-1">
-              <UserMenu />
-            </div>
           </div>
         </aside>
       )}

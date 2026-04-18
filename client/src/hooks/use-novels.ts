@@ -67,34 +67,7 @@ export function useDeleteNovel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.novels.list.path] });
-      queryClient.invalidateQueries({ queryKey: ["/api/novels/published"] });
       toast({ title: "تم الحذف", description: "تم حذف الرواية بنجاح" });
-    },
-  });
-}
-
-export function useUpdateNovel() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({ id, novel }: { id: number; novel: Partial<InsertNovel> }) => {
-      const url = buildUrl(api.novels.update.path, { id });
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(novel),
-      });
-      if (!res.ok) throw new Error("فشل تحديث الرواية");
-      return api.novels.update.responses[200].parse(await res.json());
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [api.novels.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.novels.get.path, data.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/novels/published"] });
-    },
-    onError: () => {
-      toast({ title: "خطأ", description: "تعذر تحديث الرواية", variant: "destructive" });
     },
   });
 }

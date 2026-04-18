@@ -1,21 +1,13 @@
 import { db } from "./db";
 import {
-  novels, characters, chapters, users, userInteractions, follows,
+  novels, characters, chapters,
   type Novel, type InsertNovel, type UpdateNovelRequest,
   type Character, type InsertCharacter, type UpdateCharacterRequest,
-  type Chapter, type InsertChapter, type UpdateChapterRequest,
-  type User, type InsertUser, type UserInteraction
+  type Chapter, type InsertChapter, type UpdateChapterRequest
 } from "@shared/schema";
-import { eq, desc, asc, and, count, sql } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
-  createUser(user: InsertUser & { passwordHash: string }): Promise<User>;
-  getUserById(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  updateUser(id: number, updates: Partial<User>): Promise<User>;
-
   // Novels
   getNovels(): Promise<Novel[]>;
   getNovel(id: number): Promise<Novel | undefined>;
@@ -36,100 +28,17 @@ export interface IStorage {
   createChapter(chapter: InsertChapter): Promise<Chapter>;
   updateChapter(id: number, chapter: UpdateChapterRequest): Promise<Chapter>;
   deleteChapter(id: number): Promise<void>;
-  
-  getPublishedNovelsWithAuthors(): Promise<(Novel & { authorUsername: string | null; authorAvatarUrl: string | null })[]>;
-
-  // Interactions
-  getUserInteraction(userId: number, novelId: number): Promise<UserInteraction | undefined>;
-  updateUserInteraction(userId: number, novelId: number, updates: Partial<UserInteraction>): Promise<void>;
-
-  // Follows
-  followUser(followerId: number, followingId: number): Promise<void>;
-  unfollowUser(followerId: number, followingId: number): Promise<void>;
-  isFollowing(followerId: number, followingId: number): Promise<boolean>;
-  getFollowerCount(userId: number): Promise<number>;
-  getFollowingCount(userId: number): Promise<number>;
-
-  // Profile
-  getUserPublishedNovels(userId: number): Promise<Novel[]>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // ... (previous methods)
-
-  async incrementViews(id: number): Promise<void> {
-    const [novel] = await db.select().from(novels).where(eq(novels.id, id));
-    if (novel) {
-      await db.update(novels).set({ views: (novel.views || 0) + 1 }).where(eq(novels.id, id));
-    }
-  }
-
-  async updateLikes(id: number, increment: boolean): Promise<void> {
-    const [novel] = await db.select().from(novels).where(eq(novels.id, id));
-    if (novel) {
-      const current = novel.likes || 0;
-      await db.update(novels).set({ likes: increment ? current + 1 : Math.max(0, current - 1) }).where(eq(novels.id, id));
-    }
-  }
-
-  async updateDislikes(id: number, increment: boolean): Promise<void> {
-    const [novel] = await db.select().from(novels).where(eq(novels.id, id));
-    if (novel) {
-      const current = novel.dislikes || 0;
-      await db.update(novels).set({ dislikes: increment ? current + 1 : Math.max(0, current - 1) }).where(eq(novels.id, id));
-    }
-  }
-
   // Novels
   async getNovels(): Promise<Novel[]> {
     return await db.select().from(novels).orderBy(desc(novels.createdAt));
   }
 
-  async getPublishedNovelsWithAuthors(): Promise<(Novel & { authorUsername: string | null; authorAvatarUrl: string | null })[]> {
-    const rows = await db
-      .select({
-        id: novels.id,
-        authorId: novels.authorId,
-        title: novels.title,
-        genre: novels.genre,
-        synopsis: novels.synopsis,
-        coverUrl: novels.coverUrl,
-        views: novels.views,
-        likes: novels.likes,
-        dislikes: novels.dislikes,
-        status: novels.status,
-        createdAt: novels.createdAt,
-        authorUsername: users.username,
-        authorAvatarUrl: users.avatarUrl,
-      })
-      .from(novels)
-      .leftJoin(users, eq(novels.authorId, users.id))
-      .where(eq(novels.status, "published"))
-      .orderBy(desc(novels.createdAt));
-    return rows as any;
-  }
-
-  async getNovel(id: number): Promise<(Novel & { authorUsername: string | null; authorAvatarUrl: string | null }) | undefined> {
-    const [row] = await db
-      .select({
-        id: novels.id,
-        authorId: novels.authorId,
-        title: novels.title,
-        genre: novels.genre,
-        synopsis: novels.synopsis,
-        coverUrl: novels.coverUrl,
-        views: novels.views,
-        likes: novels.likes,
-        dislikes: novels.dislikes,
-        status: novels.status,
-        createdAt: novels.createdAt,
-        authorUsername: users.username,
-        authorAvatarUrl: users.avatarUrl,
-      })
-      .from(novels)
-      .leftJoin(users, eq(novels.authorId, users.id))
-      .where(eq(novels.id, id));
-    return row as any;
+  async getNovel(id: number): Promise<Novel | undefined> {
+    const [novel] = await db.select().from(novels).where(eq(novels.id, id));
+    return novel;
   }
 
   async createNovel(novel: InsertNovel): Promise<Novel> {
@@ -192,95 +101,6 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChapter(id: number): Promise<void> {
     await db.delete(chapters).where(eq(chapters.id, id));
-  }
-
-  // Users
-  async createUser(user: InsertUser & { passwordHash: string }): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
-  }
-
-  async getUserById(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
-  }
-
-  async updateUser(id: number, updates: Partial<User>): Promise<User> {
-    const [updated] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
-    return updated;
-  }
-
-  // Interactions
-  async getUserInteraction(userId: number, novelId: number): Promise<UserInteraction | undefined> {
-    const [interaction] = await db.select().from(userInteractions).where(
-      and(eq(userInteractions.userId, userId), eq(userInteractions.novelId, novelId))
-    );
-    return interaction;
-  }
-
-  async updateUserInteraction(userId: number, novelId: number, updates: Partial<UserInteraction>): Promise<void> {
-    const existing = await this.getUserInteraction(userId, novelId);
-    if (existing) {
-      await db.update(userInteractions).set(updates).where(
-        and(eq(userInteractions.userId, userId), eq(userInteractions.novelId, novelId))
-      );
-    } else {
-      await db.insert(userInteractions).values({
-        userId,
-        novelId,
-        ...updates
-      } as any);
-    }
-  }
-
-  // Follows
-  async followUser(followerId: number, followingId: number): Promise<void> {
-    const existing = await db.select().from(follows).where(
-      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
-    );
-    if (existing.length === 0) {
-      await db.insert(follows).values({ followerId, followingId });
-    }
-  }
-
-  async unfollowUser(followerId: number, followingId: number): Promise<void> {
-    await db.delete(follows).where(
-      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
-    );
-  }
-
-  async isFollowing(followerId: number, followingId: number): Promise<boolean> {
-    const [row] = await db.select().from(follows).where(
-      and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
-    );
-    return !!row;
-  }
-
-  async getFollowerCount(userId: number): Promise<number> {
-    const [row] = await db.select({ cnt: count() }).from(follows).where(eq(follows.followingId, userId));
-    return Number(row?.cnt ?? 0);
-  }
-
-  async getFollowingCount(userId: number): Promise<number> {
-    const [row] = await db.select({ cnt: count() }).from(follows).where(eq(follows.followerId, userId));
-    return Number(row?.cnt ?? 0);
-  }
-
-  // Profile
-  async getUserPublishedNovels(userId: number): Promise<Novel[]> {
-    return await db.select().from(novels)
-      .where(and(eq(novels.authorId, userId), eq(novels.status, "published")))
-      .orderBy(desc(novels.createdAt));
   }
 }
 
